@@ -1,0 +1,11 @@
+{
+    "name": "static-builder",
+    "version": "0.0.1",
+    "author": "Nikolay Shkrylev <snnwolf@gmail.com>",
+    "description": "For concat, minify and revision of static media files css, js",
+    "dependencies": {
+        "js-yaml": "*",
+        "uglify-js": "*",
+        "uglifycss": "*"
+    }
+}
