@@ -1,17 +1,17 @@
-# You need uglify
-# npm install -g uglify-js
-# npm link uglify-js
-# Run that into node and voila bitch
+###
+Version: 0.0.1
+###
+# TODO разобраться с @include в css
 
 'use strict'
 fs = require 'fs'
 path = require 'path'
-yaml = require 'js-yaml'
+util = require 'util'
+# yaml = require 'js-yaml'
 
 TMP_DIR = '/tmp/'
 FILE_ENCODING = 'utf-8'
 EOL = "\n"
-# filesArray = require('../app/config')
 
 clearDir = (dirPath, deleteRoot = false) ->
     try
@@ -29,8 +29,10 @@ clearDir = (dirPath, deleteRoot = false) ->
         fs.rmdirSync dirPath, true
     return
 
-base64replace = (src) ->
+# при случае можно использовать https://github.com/jakubpawlowicz/enhance-css
+base64replace = (src, config) ->
     src = [src] if !Array.isArray(src)
+    # https://github.com/zckrs/gulp-css-base64
     rImages = /url(?:\(['|"]?)(.*?)(?:['|"]?\))(?!.*\/\*base64:skip\*\/)/ig
     # console.log "read css", src
     out = src.map (filePath) ->
@@ -39,7 +41,7 @@ base64replace = (src) ->
         cssDir = path.dirname(filePath)
         code.replace rImages, (match, file, type) ->
             if file.indexOf('/') == 0
-                fileName = __dirname + file
+                fileName = path.normalize "#{config.rootPath}/#{file}"
             else
                 fileName = path.normalize "#{cssDir}/#{file}"
             # console.log fileName, match
@@ -68,9 +70,10 @@ base64replace = (src) ->
                 return "url(\"data:image/#{type};base64,#{base64}\")"
     return out.join(EOL)
 
-uglify = (src, type, distDir) ->
+uglify = (src, type, config) ->
     src = [src] if !Array.isArray(src)
-    distDir = 'm/' if distDir == undefined
+
+    distDir = config.distDir or 'm/'
 
     if !distDir or !fs.lstatSync(distDir).isDirectory()
         throw new Error "#{distDir} is not a directory"
@@ -81,13 +84,13 @@ uglify = (src, type, distDir) ->
     switch type
         when 'css'
             uglifyCSS = require('uglifycss')
-            code = base64replace src
+            code = base64replace src, config
             code = uglifyCSS.processString code
         when 'js'
             uglifyJS = require('uglify-js')
             mincode = uglifyJS.minify src,
                 # outSourceMap: "#{dist}.map"
-                compress: hoist_funs: false
+                compress: hoist_funs: false # чтобы не вырезал типа не используемый код
             code = mincode.code
         else
             throw new Error "#{type} must bee js|css"
@@ -97,88 +100,85 @@ uglify = (src, type, distDir) ->
         comment += " * #{ff}\n"
     comment += " */"
 
-    dist = path.normalize distDir + '/' + md5sum.update(code).digest('hex') + '.' + type.toLowerCase()
+    distFile = md5sum.update(code).digest('hex')[0...7] + '.' + type
+    dist = path.normalize distDir + '/' + distFile
     # console.log mincode.code
     # clearDir distDir
     fs.writeFileSync(dist, "#{comment}\n#{code}", FILE_ENCODING);
     # console.log src, dist
-    return "/#{dist}"
+    return path.normalize "#{config.baseUrl}/#{distFile}"
 
 # uglify ['js/functions.js', 'js/main.js'], 'js', 'm'
 # uglify ['css/normalize.min.css', 'css/main.css'], 'css', 'm/'
 # uglify ['phone/css/jcarousel.connected-carousels.css', 'phone/css/mb.css'], 'css'
 
 plugin =
-    build: (cf) ->
-        fs.readFile cf, 'utf8', (err, data) ->
-            if err
-                console.error err.stack || err.message || String err
-                return
-            loaded = yaml.load data
-            # console.log loaded.packages
-            res = {}
-            clearDir('m/')
-            for package_idx, package_content of loaded.packages
-                res[package_idx] = []
-                # console.log package_idx, package_content
-                if package_content.css_ext
-                    for l in package_content.css_ext
-                        part =
-                            tag: "<link rel=\"stylesheet\" type=\"text/css\" href=\"#{l}\">"
-                            consists_of: ["<link rel=\"stylesheet\" type=\"text/css\" href=\"#{l}\">"]
-                        res[package_idx].push part
-                        # console.log part
-
-                if package_content.js_ext
-                    for l in package_content.js_ext
-                        part =
-                            tag: "<script type=\"text/javascript\" src=\"#{l}\">"
-                            consists_of: ["<script type=\"text/javascript\" src=\"#{l}\">"]
-                        res[package_idx].push part
-
-                if package_content.js
-                    consists_of = []
-                    list_path = []
-                    # if package_content.js_dir
-                    #     base_path = package_content.js_dir.src
-                    # base_path = loaded.dir.js.src if !base_path
-
-                    for l in package_content.js
-                        list_path.push "#{l.path}"
-                        consists_of.push "<script type=\"text/javascript\" src=\"#{l.href}\">"
-
-                    # console.log package_idx, consists_of
-                    ugilified = uglify list_path, 'js'
+    build: (config) ->
+        # console.log config.packages
+        # TODO привести конфиг к какому-то шаблону
+        # для конфигов можно использовать https://github.com/indexzero/nconf
+        res = {}
+        clearDir(config.distDir)
+        for package_idx, package_content of config.packages
+            res[package_idx] = []
+            tags_tpl =
+                css: "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
+                js: "<script type=\"text/javascript\" src=\"%s\">"
+            # console.log package_idx, package_content
+            if package_content.css_ext
+                for l in package_content.css_ext
                     part =
-                        tag: "<script type=\"text/javascript\" src=\"#{ugilified}\">"
-                        consists_of: consists_of
+                        tag: util.format tags_tpl['css'], l
+                        consists_of: [util.format tags_tpl['css'], l]
+                    res[package_idx].push part
+                    # console.log part
+
+            if package_content.js_ext
+                for l in package_content.js_ext
+                    part =
+                        tag: util.format tags_tpl['js'], l
+                        consists_of: [util.format tags_tpl['js'], l]
                     res[package_idx].push part
 
-                if package_content.css
-                    consists_of = []
-                    list_path = []
-                    # if package_content.css_dir
-                    #     base_path = package_content.css_dir.src
-                    # base_path = loaded.dir.css.src if !base_path
+            if package_content.js
+                consists_of = []
+                list_path = []
 
-                    for l in package_content.css
-                        list_path.push "#{l.path}"
-                        consists_of.push "<link rel=\"stylesheet\" type=\"text/css\" href=\"#{l.href}\">"
+                for l in package_content.js
+                    list_path.push "#{l.path}"
+                    consists_of.push util.format tags_tpl['js'], l.href
 
-                    # console.log package_idx, consists_of
-                    ugilified = uglify list_path, 'css'
-                    part =
-                        tag: "<link rel=\"stylesheet\" type=\"text/css\" href=\"#{ugilified}\">"
-                        consists_of: consists_of
-                    res[package_idx].push part
-            # console.log 'res', res
+                # console.log package_idx, consists_of
+                ugilified = uglify list_path, 'js', config
+                part =
+                    tag: util.format tags_tpl['js'], ugilified
+                    consists_of: consists_of
+                res[package_idx].push part
 
-            fs.writeFileSync 'm/build.json', JSON.stringify(res, null, 4), FILE_ENCODING
+            if package_content.css
+                consists_of = []
+                list_path = []
 
-            return
+                for l in package_content.css
+                    list_path.push "#{l.path}"
+                    consists_of.push util.format tags_tpl['css'], l.href
 
+                # console.log package_idx, consists_of
+                ugilified = uglify list_path, 'css', config
+                part =
+                    tag: util.format tags_tpl['css'], ugilified
+                    consists_of: consists_of
+                res[package_idx].push part
+        # console.log 'res', res
+
+        fs.writeFileSync 'm/build.json', JSON.stringify(res, null, 4), FILE_ENCODING
+
+        return
 
 if require.main == module
-    plugin.build path.join(__dirname, 'builder.yml')
+    config = require './builder-config'
+    plugin.build config
+    # console.log config
+    # console.log util.format 'srcipt url="%s"', 'http://bilder.com'
 
 # module.exports = plugin
