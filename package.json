@@ -5,6 +5,7 @@
     "description": "For concat, minify and revision of static media files css, js",
     "dependencies": {
         "uglify-js": "*",
-        "uglifycss": "*"
+        "uglifycss": "*",
+        "mime": "*"
     }
 }

@@ -7,7 +7,7 @@ Version: 0.0.2
 fs = require 'fs'
 path = require 'path'
 util = require 'util'
-# yaml = require 'js-yaml'
+mime = require 'mime'
 
 TMP_DIR = '/tmp/'
 FILE_ENCODING = 'utf-8'
@@ -30,23 +30,42 @@ clearDir = (dirPath, deleteRoot = false) ->
     return
 
 # при случае можно использовать https://github.com/jakubpawlowicz/enhance-css
+# TODO пропускать комментарии
 base64replace = (src, config) ->
+    allowedExt = config.allowedExt or ['.jpeg', '.jpg', '.png', '.gif', '.svg']
+    distDir = config.distDir or 'm/'
+    rootPath = config.rootPath or __dirname
+
     src = [src] if !Array.isArray(src)
     # https://github.com/zckrs/gulp-css-base64
     rImages = /url(?:\(['|"]?)(.*?)(?:['|"]?\))(?!.*\/\*base64:skip\*\/)/ig
-    # console.log "read css", src
+
+    # console.log "read", src
     out = src.map (filePath) ->
+        console.log "\#\# CSS::#{filePath}"
         files = {}
         code = fs.readFileSync filePath, FILE_ENCODING
         cssDir = path.dirname(filePath)
-        code.replace rImages, (match, file, type) ->
+
+        code.replace rImages, (match, file) ->
+            # вдруг уже была замена
+            if match.indexOf('data:image') > -1
+                return match
+
+            relativeFilePath = path.normalize(path.relative(distDir, cssDir) + '/' + file)
+            relativeMatch = "url(#{relativeFilePath})"
+
+            if allowedExt.indexOf(path.extname(file)) < 0
+                # для шрифтов из других папопк, типа /phone/fonts
+                # console.log "Формат в игноре #{file}", relativeMatch
+                return relativeMatch
+
             if file.indexOf('/') == 0
                 fileName = path.normalize "#{config.rootPath}/#{file}"
             else
                 fileName = path.normalize "#{cssDir}/#{file}"
             # console.log fileName, match
-            if match.indexOf('data:image') > -1
-                return match
+
             try
                 if !fs.statSync(fileName).isFile()
                     console.log "Skip #{fileName} not is file"
@@ -56,24 +75,26 @@ base64replace = (src, config) ->
                 return match
 
             size = fs.statSync(fileName).size
-            type = 'jpeg' if type == 'jpg'
-            type = 'svg+xml' if type == 'svg'
+
+            # TODO добавить в конфиги
             if size > 4096
-                # console.log "Skip #{fileName} (" + (Math.round(size/1024*100)/100) + 'k)'
-                return match
+                console.log "Skip #{fileName} (" + (Math.round(size/1024*100)/100) + 'k)'
+                return relativeMatch # match
             else
                 base64 = fs.readFileSync(fileName).toString('base64')
                 # if typeof(files[fileName]) != 'undefined'
                 #     console.log "Warning: #{fileName} has already been base64 encoded in the css"
                 files[fileName] = true
                 # console.log "#{fileName} ok"
-                return "url(\"data:image/#{type};base64,#{base64}\")"
+                return "url(\"data:"+mime.lookup(file)+";base64,#{base64}\")"
     return out.join(EOL)
 
 uglify = (src, type, config) ->
     src = [src] if !Array.isArray(src)
 
     distDir = config.distDir or 'm/'
+    baseUrl = config.baseUrl or '/m/'
+    rootPath = config.rootPath or __dirname
 
     if !distDir or !fs.lstatSync(distDir).isDirectory()
         throw new Error "#{distDir} is not a directory"
@@ -97,6 +118,7 @@ uglify = (src, type, config) ->
 
     comment = "/**\n"
     for ff in src
+        ff = ff.replace rootPath, ''
         comment += " * #{ff}\n"
     comment += " */"
 
@@ -106,7 +128,7 @@ uglify = (src, type, config) ->
     # clearDir distDir
     fs.writeFileSync(dist, "#{comment}\n#{code}", FILE_ENCODING);
     # console.log src, dist
-    return path.normalize "#{config.baseUrl}/#{distFile}"
+    return path.normalize "#{baseUrl}/#{distFile}"
 
 # uglify ['js/functions.js', 'js/main.js'], 'js', 'm'
 # uglify ['css/normalize.min.css', 'css/main.css'], 'css', 'm/'
@@ -118,28 +140,25 @@ plugin =
         # TODO привести конфиг к какому-то шаблону
         # для конфигов можно использовать https://github.com/indexzero/nconf
         res = {}
+        outputFile = config.outputFile or 'm/build.json'
         clearDir(config.distDir)
         for package_idx, package_content of config.packages
             res[package_idx] = []
             tags_tpl =
                 css: "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">"
-                js: "<script type=\"text/javascript\" src=\"%s\">"
-            # console.log package_idx, package_content
-            if package_content.css_ext
-                for l in package_content.css_ext
-                    part =
-                        tag: util.format tags_tpl['css'], l
-                        consists_of: [util.format tags_tpl['css'], l]
-                    res[package_idx].push part
-                    # console.log part
-
-            if package_content.js_ext
-                for l in package_content.js_ext
-                    part =
-                        tag: util.format tags_tpl['js'], l
-                        consists_of: [util.format tags_tpl['js'], l]
-                    res[package_idx].push part
-
+                js: "<script type=\"text/javascript\" src=\"%s\"></script>"
+            console.log "[#{package_idx}]" #, package_content
+            # внешние скрипты
+            for _type in ['css', 'js']
+                _type_ext = "#{_type}_ext"
+                if package_content[_type_ext]
+                    for l in package_content[_type_ext]
+                        part =
+                            tag: util.format tags_tpl[_type], l
+                            consists_of: [util.format tags_tpl[_type], l]
+                        res[package_idx].push part
+                        # console.log part
+            # внутренние скрипты
             for _type in ['css', 'js']
                 if package_content[_type]
                     consists_of = []
@@ -149,30 +168,14 @@ plugin =
                         consists_of.push util.format tags_tpl[_type], l
                         files.push path.normalize "#{config.rootPath}/#{l}"
 
-                    console.log package_idx, files, consists_of
+                    # console.log package_idx, files, consists_of
                     ugilified = uglify files, _type, config
                     part =
                         tag: util.format tags_tpl[_type], ugilified
                         consists_of: consists_of
                     res[package_idx].push part
 
-        #     if package_content.css
-        #         consists_of = []
-        #         list_path = []
-
-        #         for l in package_content.css
-        #             list_path.push "#{l.path}"
-        #             consists_of.push util.format tags_tpl['css'], l.href
-
-        #         # console.log package_idx, consists_of
-        #         ugilified = uglify list_path, 'css', config
-        #         part =
-        #             tag: util.format tags_tpl['css'], ugilified
-        #             consists_of: consists_of
-        #         res[package_idx].push part
-        # # console.log 'res', res
-
-        fs.writeFileSync 'm/build.json', JSON.stringify(res, null, 4), FILE_ENCODING
+        fs.writeFileSync outputFile, JSON.stringify(res, null, 4), FILE_ENCODING
 
         return
 
@@ -180,6 +183,7 @@ if require.main == module
     config = require './builder-config'
     plugin.build config
     # console.log util.inspect(config, { showHidden: true, depth: null })
+    # console.log (config.rootPath + '/phone/js/main.js').replace config.rootPath, ''
     # console.log util.format 'srcipt url="%s"', 'http://bilder.com'
     # console.log __dirname, path.relative __dirname + '/phone/js/main.js', __dirname
 

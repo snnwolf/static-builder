@@ -4,13 +4,15 @@
 Version: 0.0.2
  */
 'use strict';
-var EOL, FILE_ENCODING, TMP_DIR, base64replace, clearDir, config, fs, path, plugin, uglify, util;
+var EOL, FILE_ENCODING, TMP_DIR, base64replace, clearDir, config, fs, mime, path, plugin, uglify, util;
 
 fs = require('fs');
 
 path = require('path');
 
 util = require('util');
+
+mime = require('mime');
 
 TMP_DIR = '/tmp/';
 
@@ -46,25 +48,34 @@ clearDir = function(dirPath, deleteRoot) {
 };
 
 base64replace = function(src, config) {
-  var out, rImages;
+  var allowedExt, distDir, out, rImages, rootPath;
+  allowedExt = config.allowedExt || ['.jpeg', '.jpg', '.png', '.gif', '.svg'];
+  distDir = config.distDir || 'm/';
+  rootPath = config.rootPath || __dirname;
   if (!Array.isArray(src)) {
     src = [src];
   }
   rImages = /url(?:\(['|"]?)(.*?)(?:['|"]?\))(?!.*\/\*base64:skip\*\/)/ig;
   out = src.map(function(filePath) {
     var code, cssDir, files;
+    console.log("\#\# CSS::" + filePath);
     files = {};
     code = fs.readFileSync(filePath, FILE_ENCODING);
     cssDir = path.dirname(filePath);
-    return code.replace(rImages, function(match, file, type) {
-      var base64, e, fileName, size;
+    return code.replace(rImages, function(match, file) {
+      var base64, e, fileName, relativeFilePath, relativeMatch, size;
+      if (match.indexOf('data:image') > -1) {
+        return match;
+      }
+      relativeFilePath = path.normalize(path.relative(distDir, cssDir) + '/' + file);
+      relativeMatch = "url(" + relativeFilePath + ")";
+      if (allowedExt.indexOf(path.extname(file)) < 0) {
+        return relativeMatch;
+      }
       if (file.indexOf('/') === 0) {
         fileName = path.normalize("" + config.rootPath + "/" + file);
       } else {
         fileName = path.normalize("" + cssDir + "/" + file);
-      }
-      if (match.indexOf('data:image') > -1) {
-        return match;
       }
       try {
         if (!fs.statSync(fileName).isFile()) {
@@ -77,18 +88,13 @@ base64replace = function(src, config) {
         return match;
       }
       size = fs.statSync(fileName).size;
-      if (type === 'jpg') {
-        type = 'jpeg';
-      }
-      if (type === 'svg') {
-        type = 'svg+xml';
-      }
       if (size > 4096) {
-        return match;
+        console.log(("Skip " + fileName + " (") + (Math.round(size / 1024 * 100) / 100) + 'k)');
+        return relativeMatch;
       } else {
         base64 = fs.readFileSync(fileName).toString('base64');
         files[fileName] = true;
-        return "url(\"data:image/" + type + ";base64," + base64 + "\")";
+        return "url(\"data:" + mime.lookup(file) + (";base64," + base64 + "\")");
       }
     });
   });
@@ -96,11 +102,13 @@ base64replace = function(src, config) {
 };
 
 uglify = function(src, type, config) {
-  var code, comment, dist, distDir, distFile, ff, md5sum, mincode, uglifyCSS, uglifyJS, _i, _len;
+  var baseUrl, code, comment, dist, distDir, distFile, ff, md5sum, mincode, rootPath, uglifyCSS, uglifyJS, _i, _len;
   if (!Array.isArray(src)) {
     src = [src];
   }
   distDir = config.distDir || 'm/';
+  baseUrl = config.baseUrl || '/m/';
+  rootPath = config.rootPath || __dirname;
   if (!distDir || !fs.lstatSync(distDir).isDirectory()) {
     throw new Error("" + distDir + " is not a directory");
   }
@@ -127,19 +135,21 @@ uglify = function(src, type, config) {
   comment = "/**\n";
   for (_i = 0, _len = src.length; _i < _len; _i++) {
     ff = src[_i];
+    ff = ff.replace(rootPath, '');
     comment += " * " + ff + "\n";
   }
   comment += " */";
   distFile = md5sum.update(code).digest('hex').slice(0, 7) + '.' + type;
   dist = path.normalize(distDir + '/' + distFile);
   fs.writeFileSync(dist, "" + comment + "\n" + code, FILE_ENCODING);
-  return path.normalize("" + config.baseUrl + "/" + distFile);
+  return path.normalize("" + baseUrl + "/" + distFile);
 };
 
 plugin = {
   build: function(config) {
-    var consists_of, files, l, package_content, package_idx, part, res, tags_tpl, ugilified, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3, _ref4, _type;
+    var consists_of, files, l, outputFile, package_content, package_idx, part, res, tags_tpl, ugilified, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3, _ref4, _type, _type_ext;
     res = {};
+    outputFile = config.outputFile || 'm/build.json';
     clearDir(config.distDir);
     _ref = config.packages;
     for (package_idx in _ref) {
@@ -147,28 +157,23 @@ plugin = {
       res[package_idx] = [];
       tags_tpl = {
         css: "<link rel=\"stylesheet\" type=\"text/css\" href=\"%s\">",
-        js: "<script type=\"text/javascript\" src=\"%s\">"
+        js: "<script type=\"text/javascript\" src=\"%s\"></script>"
       };
-      if (package_content.css_ext) {
-        _ref1 = package_content.css_ext;
-        for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
-          l = _ref1[_i];
-          part = {
-            tag: util.format(tags_tpl['css'], l),
-            consists_of: [util.format(tags_tpl['css'], l)]
-          };
-          res[package_idx].push(part);
-        }
-      }
-      if (package_content.js_ext) {
-        _ref2 = package_content.js_ext;
-        for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
-          l = _ref2[_j];
-          part = {
-            tag: util.format(tags_tpl['js'], l),
-            consists_of: [util.format(tags_tpl['js'], l)]
-          };
-          res[package_idx].push(part);
+      console.log("[" + package_idx + "]");
+      _ref1 = ['css', 'js'];
+      for (_i = 0, _len = _ref1.length; _i < _len; _i++) {
+        _type = _ref1[_i];
+        _type_ext = "" + _type + "_ext";
+        if (package_content[_type_ext]) {
+          _ref2 = package_content[_type_ext];
+          for (_j = 0, _len1 = _ref2.length; _j < _len1; _j++) {
+            l = _ref2[_j];
+            part = {
+              tag: util.format(tags_tpl[_type], l),
+              consists_of: [util.format(tags_tpl[_type], l)]
+            };
+            res[package_idx].push(part);
+          }
         }
       }
       _ref3 = ['css', 'js'];
@@ -183,7 +188,6 @@ plugin = {
             consists_of.push(util.format(tags_tpl[_type], l));
             files.push(path.normalize("" + config.rootPath + "/" + l));
           }
-          console.log(package_idx, files, consists_of);
           ugilified = uglify(files, _type, config);
           part = {
             tag: util.format(tags_tpl[_type], ugilified),
@@ -193,7 +197,7 @@ plugin = {
         }
       }
     }
-    fs.writeFileSync('m/build.json', JSON.stringify(res, null, 4), FILE_ENCODING);
+    fs.writeFileSync(outputFile, JSON.stringify(res, null, 4), FILE_ENCODING);
   }
 };
 
