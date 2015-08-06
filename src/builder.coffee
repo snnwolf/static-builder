@@ -32,10 +32,6 @@ clearDir = (dirPath, deleteRoot = false) ->
 # при случае можно использовать https://github.com/jakubpawlowicz/enhance-css
 # TODO пропускать комментарии
 base64replace = (src, config) ->
-    allowedExt = config.allowedExt or ['.jpeg', '.jpg', '.png', '.gif', '.svg']
-    distDir = config.distDir or 'm/'
-    rootPath = config.rootPath or __dirname
-
     src = [src] if !Array.isArray(src)
     # https://github.com/zckrs/gulp-css-base64
     rImages = /url(?:\(['|"]?)(.*?)(?:['|"]?\))(?!.*\/\*base64:skip\*\/)/ig
@@ -52,10 +48,10 @@ base64replace = (src, config) ->
             if match.indexOf('data:image') > -1
                 return match
 
-            relativeFilePath = path.normalize(path.relative(distDir, cssDir) + '/' + file)
+            relativeFilePath = path.normalize(path.relative(config.distDir, cssDir) + '/' + file)
             relativeMatch = "url(#{relativeFilePath})"
 
-            if allowedExt.indexOf(path.extname(file)) < 0
+            if config.allowedExt.indexOf(path.extname(file)) < 0
                 # для шрифтов из других папопк, типа /phone/fonts
                 # console.log "Формат в игноре #{file}", relativeMatch
                 return relativeMatch
@@ -92,12 +88,8 @@ base64replace = (src, config) ->
 uglify = (src, type, config) ->
     src = [src] if !Array.isArray(src)
 
-    distDir = config.distDir or 'm/'
-    baseUrl = config.baseUrl or '/m/'
-    rootPath = config.rootPath or __dirname
-
-    if !distDir or !fs.lstatSync(distDir).isDirectory()
-        throw new Error "#{distDir} is not a directory"
+    if !config.distDir or !fs.lstatSync(config.distDir).isDirectory()
+        throw new Error "#{config.distDir} is not a directory"
 
     md5sum = require('crypto').createHash('md5')
     code = ''
@@ -118,17 +110,17 @@ uglify = (src, type, config) ->
 
     comment = "/**\n"
     for ff in src
-        ff = ff.replace rootPath, ''
+        ff = ff.replace config.rootPath, ''
         comment += " * #{ff}\n"
     comment += " */"
 
     distFile = md5sum.update(code).digest('hex')[0...7] + '.' + type
-    dist = path.normalize distDir + '/' + distFile
+    dist = path.normalize config.distDir + '/' + distFile
     # console.log mincode.code
-    # clearDir distDir
+    # clearDir config.distDir
     fs.writeFileSync(dist, "#{comment}\n#{code}", FILE_ENCODING);
     # console.log src, dist
-    return path.normalize "#{baseUrl}/#{distFile}"
+    return path.normalize "#{config.baseUrl}/#{distFile}"
 
 # uglify ['js/functions.js', 'js/main.js'], 'js', 'm'
 # uglify ['css/normalize.min.css', 'css/main.css'], 'css', 'm/'
@@ -140,7 +132,14 @@ plugin =
         # TODO привести конфиг к какому-то шаблону
         # для конфигов можно использовать https://github.com/indexzero/nconf
         res = {}
-        outputFile = config.outputFile or 'm/build.json'
+        config = {} if !config
+        config.outputFile = 'm/build.json' if !config.outputFile
+        config.allowedExt = ['.jpeg', '.jpg', '.png', '.gif', '.svg'] if !config.allowedExt
+        config.distDir = 'm/' if !config.distDir
+        config.baseUrl = '/m/' if !config.baseUrl
+        config.rootPath = __dirname if !config.rootPath
+
+
         clearDir(config.distDir)
         for package_idx, package_content of config.packages
             res[package_idx] = []
@@ -175,7 +174,7 @@ plugin =
                         consists_of: consists_of
                     res[package_idx].push part
 
-        fs.writeFileSync outputFile, JSON.stringify(res, null, 4), FILE_ENCODING
+        fs.writeFileSync config.outputFile, JSON.stringify(res, null, 4), FILE_ENCODING
 
         return
 

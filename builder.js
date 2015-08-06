@@ -48,10 +48,7 @@ clearDir = function(dirPath, deleteRoot) {
 };
 
 base64replace = function(src, config) {
-  var allowedExt, distDir, out, rImages, rootPath;
-  allowedExt = config.allowedExt || ['.jpeg', '.jpg', '.png', '.gif', '.svg'];
-  distDir = config.distDir || 'm/';
-  rootPath = config.rootPath || __dirname;
+  var out, rImages;
   if (!Array.isArray(src)) {
     src = [src];
   }
@@ -67,9 +64,9 @@ base64replace = function(src, config) {
       if (match.indexOf('data:image') > -1) {
         return match;
       }
-      relativeFilePath = path.normalize(path.relative(distDir, cssDir) + '/' + file);
+      relativeFilePath = path.normalize(path.relative(config.distDir, cssDir) + '/' + file);
       relativeMatch = "url(" + relativeFilePath + ")";
-      if (allowedExt.indexOf(path.extname(file)) < 0) {
+      if (config.allowedExt.indexOf(path.extname(file)) < 0) {
         return relativeMatch;
       }
       if (file.indexOf('/') === 0) {
@@ -102,15 +99,12 @@ base64replace = function(src, config) {
 };
 
 uglify = function(src, type, config) {
-  var baseUrl, code, comment, dist, distDir, distFile, ff, md5sum, mincode, rootPath, uglifyCSS, uglifyJS, _i, _len;
+  var code, comment, dist, distFile, ff, md5sum, mincode, uglifyCSS, uglifyJS, _i, _len;
   if (!Array.isArray(src)) {
     src = [src];
   }
-  distDir = config.distDir || 'm/';
-  baseUrl = config.baseUrl || '/m/';
-  rootPath = config.rootPath || __dirname;
-  if (!distDir || !fs.lstatSync(distDir).isDirectory()) {
-    throw new Error("" + distDir + " is not a directory");
+  if (!config.distDir || !fs.lstatSync(config.distDir).isDirectory()) {
+    throw new Error("" + config.distDir + " is not a directory");
   }
   md5sum = require('crypto').createHash('md5');
   code = '';
@@ -135,21 +129,38 @@ uglify = function(src, type, config) {
   comment = "/**\n";
   for (_i = 0, _len = src.length; _i < _len; _i++) {
     ff = src[_i];
-    ff = ff.replace(rootPath, '');
+    ff = ff.replace(config.rootPath, '');
     comment += " * " + ff + "\n";
   }
   comment += " */";
   distFile = md5sum.update(code).digest('hex').slice(0, 7) + '.' + type;
-  dist = path.normalize(distDir + '/' + distFile);
+  dist = path.normalize(config.distDir + '/' + distFile);
   fs.writeFileSync(dist, "" + comment + "\n" + code, FILE_ENCODING);
-  return path.normalize("" + baseUrl + "/" + distFile);
+  return path.normalize("" + config.baseUrl + "/" + distFile);
 };
 
 plugin = {
   build: function(config) {
-    var consists_of, files, l, outputFile, package_content, package_idx, part, res, tags_tpl, ugilified, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3, _ref4, _type, _type_ext;
+    var consists_of, files, l, package_content, package_idx, part, res, tags_tpl, ugilified, _i, _j, _k, _l, _len, _len1, _len2, _len3, _ref, _ref1, _ref2, _ref3, _ref4, _type, _type_ext;
     res = {};
-    outputFile = config.outputFile || 'm/build.json';
+    if (!config) {
+      config = {};
+    }
+    if (!config.outputFile) {
+      config.outputFile = 'm/build.json';
+    }
+    if (!config.allowedExt) {
+      config.allowedExt = ['.jpeg', '.jpg', '.png', '.gif', '.svg'];
+    }
+    if (!config.distDir) {
+      config.distDir = 'm/';
+    }
+    if (!config.baseUrl) {
+      config.baseUrl = '/m/';
+    }
+    if (!config.rootPath) {
+      config.rootPath = __dirname;
+    }
     clearDir(config.distDir);
     _ref = config.packages;
     for (package_idx in _ref) {
@@ -197,7 +208,7 @@ plugin = {
         }
       }
     }
-    fs.writeFileSync(outputFile, JSON.stringify(res, null, 4), FILE_ENCODING);
+    fs.writeFileSync(config.outputFile, JSON.stringify(res, null, 4), FILE_ENCODING);
   }
 };
 
