@@ -9,23 +9,23 @@ config.packages.bb_main = {
     ],
     css_ext: [],
     js: [
-        {path: 'js/libs/jquery.magnific-popup.min.js', href: '/js/libs/jquery.magnific-popup.min.js'},
-        {path: 'js/main.js', href: '/js/main.js'}
+        '/js/libs/jquery.magnific-popup.min.js',
+        '/js/main.js'
     ],
     css: [
-            {path: 'css/normalize.min.css', href: '/css/normalize.min.css'},
-            {path: 'css/main.css', href: '/css/main.css'}
+        '/css/normalize.min.css',
+        '/css/main.css'
     ]
 }
 
 config.packages.mv_main = {
     css: [
-        {path: 'phone/css/bootstrap.min.css', href: '/phone/css/bootstrap.min.css'},
-        {path: 'phone/css/mb.css', href: '/phone/css/mb.css'}
+        '/phone/css/bootstrap.min.css',
+        '/phone/css/mb.css'
     ],
     js: [
-        {path: 'phone/js/bootstrap.min.js', href: '/phone/js/bootstrap.min.js'},
-        {path: 'phone/js/main.js', href: '/phone/js/main.js'}
+        '/phone/js/bootstrap.min.js',
+        '/phone/js/main.js'
     ]
 }
 

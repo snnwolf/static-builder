@@ -1,5 +1,5 @@
 ###
-Version: 0.0.1
+Version: 0.0.2
 ###
 # TODO разобраться с @include в css
 
@@ -140,36 +140,37 @@ plugin =
                         consists_of: [util.format tags_tpl['js'], l]
                     res[package_idx].push part
 
-            if package_content.js
-                consists_of = []
-                list_path = []
+            for _type in ['css', 'js']
+                if package_content[_type]
+                    consists_of = []
+                    files = []
 
-                for l in package_content.js
-                    list_path.push "#{l.path}"
-                    consists_of.push util.format tags_tpl['js'], l.href
+                    for l in package_content[_type]
+                        consists_of.push util.format tags_tpl[_type], l
+                        files.push path.normalize "#{config.rootPath}/#{l}"
 
-                # console.log package_idx, consists_of
-                ugilified = uglify list_path, 'js', config
-                part =
-                    tag: util.format tags_tpl['js'], ugilified
-                    consists_of: consists_of
-                res[package_idx].push part
+                    console.log package_idx, files, consists_of
+                    ugilified = uglify files, _type, config
+                    part =
+                        tag: util.format tags_tpl[_type], ugilified
+                        consists_of: consists_of
+                    res[package_idx].push part
 
-            if package_content.css
-                consists_of = []
-                list_path = []
+        #     if package_content.css
+        #         consists_of = []
+        #         list_path = []
 
-                for l in package_content.css
-                    list_path.push "#{l.path}"
-                    consists_of.push util.format tags_tpl['css'], l.href
+        #         for l in package_content.css
+        #             list_path.push "#{l.path}"
+        #             consists_of.push util.format tags_tpl['css'], l.href
 
-                # console.log package_idx, consists_of
-                ugilified = uglify list_path, 'css', config
-                part =
-                    tag: util.format tags_tpl['css'], ugilified
-                    consists_of: consists_of
-                res[package_idx].push part
-        # console.log 'res', res
+        #         # console.log package_idx, consists_of
+        #         ugilified = uglify list_path, 'css', config
+        #         part =
+        #             tag: util.format tags_tpl['css'], ugilified
+        #             consists_of: consists_of
+        #         res[package_idx].push part
+        # # console.log 'res', res
 
         fs.writeFileSync 'm/build.json', JSON.stringify(res, null, 4), FILE_ENCODING
 
@@ -178,7 +179,8 @@ plugin =
 if require.main == module
     config = require './builder-config'
     plugin.build config
-    # console.log config
+    # console.log util.inspect(config, { showHidden: true, depth: null })
     # console.log util.format 'srcipt url="%s"', 'http://bilder.com'
+    # console.log __dirname, path.relative __dirname + '/phone/js/main.js', __dirname
 
 # module.exports = plugin
