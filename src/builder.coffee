@@ -72,8 +72,7 @@ base64replace = (src, config) ->
 
             size = fs.statSync(fileName).size
 
-            # TODO добавить в конфиги
-            if size > 4096
+            if size > config.maxFileSize
                 console.log "Skip #{fileName} (" + (Math.round(size/1024*100)/100) + 'k)'
                 return relativeMatch # match
             else
@@ -129,7 +128,6 @@ uglify = (src, type, config) ->
 plugin =
     build: (config) ->
         # console.log config.packages
-        # TODO привести конфиг к какому-то шаблону
         # для конфигов можно использовать https://github.com/indexzero/nconf
         res = {}
         config = {} if !config
@@ -138,6 +136,7 @@ plugin =
         config.distDir = 'm/' if !config.distDir
         config.baseUrl = '/m/' if !config.baseUrl
         config.rootPath = __dirname if !config.rootPath
+        config.maxFileSize = 4096 if !config.maxFileSize
 
 
         clearDir(config.distDir)

@@ -7,7 +7,17 @@
 
 Там же файл build.json, где описаны все модули для подключения на странице.
 
-## Примеры
+# Параметры сборки
+```
+config.outputFile = 'm/build.json'
+config.allowedExt = ['.jpeg', '.jpg', '.png', '.gif', '.svg']
+config.distDir = 'm/'
+config.baseUrl = '/m/'
+config.rootPath = __dirname
+config.maxFileSize = 4096
+```
+
+# Примеры
 ### Symfony
 ```php
 class ProjectExtension extends Twig_Extension

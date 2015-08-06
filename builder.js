@@ -85,7 +85,7 @@ base64replace = function(src, config) {
         return match;
       }
       size = fs.statSync(fileName).size;
-      if (size > 4096) {
+      if (size > config.maxFileSize) {
         console.log(("Skip " + fileName + " (") + (Math.round(size / 1024 * 100) / 100) + 'k)');
         return relativeMatch;
       } else {
@@ -160,6 +160,9 @@ plugin = {
     }
     if (!config.rootPath) {
       config.rootPath = __dirname;
+    }
+    if (!config.maxFileSize) {
+      config.maxFileSize = 4096;
     }
     clearDir(config.distDir);
     _ref = config.packages;
