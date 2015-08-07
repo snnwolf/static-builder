@@ -23,10 +23,10 @@ config.packages.mv_main = {
         // '/phone/css/bootstrap.min.css',
         '/phone/css/mb.css'
     ],
-    // js: [
-    //     '/phone/js/bootstrap.min.js',
-    //     '/phone/js/main.js'
-    // ]
+    js: [
+        '/phone/js/bootstrap.min.js',
+        '/phone/js/main.js'
+    ]
 }
 
 config.distDir = 'm/';
