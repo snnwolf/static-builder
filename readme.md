@@ -23,10 +23,12 @@
             ]
         }
     ]
-}```
+}
+```
 
 
 # Параметры сборки
+
 ```
 config.outputFile = 'm/build.json'
 config.allowedExt = ['.jpeg', '.jpg', '.png', '.gif', '.svg']
