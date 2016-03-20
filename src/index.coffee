@@ -104,6 +104,7 @@ uglify = (src, type, config) ->
             mincode = uglifyJS.minify src,
                 # outSourceMap: "#{dist}.map"
                 compress: hoist_funs: false # чтобы не вырезал типа не используемый код
+                mangle: false # для нормальной сборки angular
             code = mincode.code
         else
             throw new Error "#{type} must bee js|css"

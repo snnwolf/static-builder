@@ -115,6 +115,9 @@ class ProjectExtension extends Twig_Extension
 - другие задачи см. в скрипте src/builder.coffee
 
 ## История
+### 0.1.1
++ нормальная сборка angular
+
 ### 0.1.0 / 2016-03-20
 + возможность в путях к файлам указывать паттерны типа `styles/**/*.css`
 

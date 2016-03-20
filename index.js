@@ -121,7 +121,8 @@ uglify = function(src, type, config) {
       mincode = uglifyJS.minify(src, {
         compress: {
           hoist_funs: false
-        }
+        },
+        mangle: false
       });
       code = mincode.code;
       break;
