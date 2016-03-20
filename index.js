@@ -57,7 +57,9 @@ base64replace = function(src, config) {
   rImages = /url(?:\(['|"]?)(.*?)(?:['|"]?\))(?!.*\/\*base64:skip\*\/)/ig;
   out = src.map(function(filePath) {
     var code, cssDir, files;
-    console.log("\#\# CSS::" + filePath);
+    if (config.debug) {
+      console.log("\#\# CSS::" + filePath);
+    }
     files = {};
     code = fs.readFileSync(filePath, FILE_ENCODING);
     cssDir = path.dirname(filePath);
@@ -88,7 +90,9 @@ base64replace = function(src, config) {
       }
       size = fs.statSync(fileName).size;
       if (size > config.maxFileSize) {
-        console.log(("Skip " + fileName + " (") + (Math.round(size / 1024 * 100) / 100) + 'k)');
+        if (config.debug) {
+          console.log(("Skip " + fileName + " (") + (Math.round(size / 1024 * 100) / 100) + 'k)');
+        }
         return relativeMatch;
       } else {
         base64 = fs.readFileSync(fileName).toString('base64');
@@ -166,6 +170,9 @@ plugin = {
     }
     if (!config.maxFileSize) {
       config.maxFileSize = 4096;
+    }
+    if (!config.debug) {
+      config.debug = false;
     }
     clearDir(config.distDir);
     ref = config.packages;

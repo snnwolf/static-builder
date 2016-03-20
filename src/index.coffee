@@ -39,7 +39,7 @@ base64replace = (src, config) ->
 
     # console.log "read", src
     out = src.map (filePath) ->
-        console.log "\#\# CSS::#{filePath}"
+        console.log "\#\# CSS::#{filePath}" if config.debug
         files = {}
         code = fs.readFileSync filePath, FILE_ENCODING
         cssDir = path.dirname(filePath)
@@ -74,7 +74,7 @@ base64replace = (src, config) ->
             size = fs.statSync(fileName).size
 
             if size > config.maxFileSize
-                console.log "Skip #{fileName} (" + (Math.round(size/1024*100)/100) + 'k)'
+                console.log "Skip #{fileName} (" + (Math.round(size/1024*100)/100) + 'k)' if config.debug
                 return relativeMatch # match
             else
                 base64 = fs.readFileSync(fileName).toString('base64')
@@ -139,7 +139,7 @@ plugin =
         config.baseUrl = '/m/' if !config.baseUrl
         config.rootPath = __dirname if !config.rootPath
         config.maxFileSize = 4096 if !config.maxFileSize
-
+        config.debug = false if !config.debug
 
         clearDir(config.distDir)
         for package_idx, package_content of config.packages
