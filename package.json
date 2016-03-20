@@ -4,13 +4,10 @@
   "author": "Nikolay Shkrylev <snnwolf@gmail.com>",
   "description": "For concat, minify and revision of static media files css, js",
   "dependencies": {
-    "glob": "^7.0.3",
-    "gulp-util": "^3.0.7",
+    "glob": "^7",
     "mime": "*",
-    "through2": "^2.0.1",
     "uglify-js": "*",
-    "uglifycss": "*",
-    "vinyl": "^1.1.1"
+    "uglifycss": "*"
   },
   "files": [
     "builder.js"
