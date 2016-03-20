@@ -115,6 +115,9 @@ class ProjectExtension extends Twig_Extension
 - другие задачи см. в скрипте src/builder.coffee
 
 ## История
+### 0.1.0 / 2016-03-20
++ возможность в путях к файлам указывать паттерны типа `styles/**/*.css`
+
 ### 0.0.2
 - путь к файлам в конфиге теперь абсолютные от корня сайта
 - добавил фильтр форматов config.allowedExt or ['.jpeg', '.jpg', '.png', '.gif', '.svg']
