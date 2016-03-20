@@ -8,6 +8,7 @@ fs = require 'fs'
 path = require 'path'
 util = require 'util'
 mime = require 'mime'
+glob = require 'glob'
 
 TMP_DIR = '/tmp/'
 FILE_ENCODING = 'utf-8'
@@ -161,8 +162,23 @@ plugin =
                 if package_content[_type]
                     consists_of = []
                     files = []
+                    src = []
 
+                    # нормализовать пути и паттерны к файлам
+                    # console.log '_type', package_content[_type]
                     for l in package_content[_type]
+                        if glob.hasMagic(l)
+                            match = glob.sync "#{config.rootPath}/#{l}"
+                            for mm in match
+                                mm = path.normalize('/' + mm.replace(config.rootPath, ''))
+                                if src.indexOf(mm) > -1
+                                    continue
+                                src.push mm
+                        else
+                            src.push l
+                    # console.log 'files:', src
+
+                    for l in src
                         consists_of.push util.format tags_tpl[_type], l
                         files.push path.normalize "#{config.rootPath}/#{l}"
 
@@ -177,12 +193,13 @@ plugin =
 
         return
 
-if require.main == module
+if module.parent
+    module.exports = plugin
+else
     config = require './builder-config'
+    # console.log config
     plugin.build config
     # console.log util.inspect(config, { showHidden: true, depth: null })
     # console.log (config.rootPath + '/phone/js/main.js').replace config.rootPath, ''
     # console.log util.format 'srcipt url="%s"', 'http://bilder.com'
     # console.log __dirname, path.relative __dirname + '/phone/js/main.js', __dirname
-
-# module.exports = plugin

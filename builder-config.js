@@ -18,20 +18,32 @@ config.packages = {};
 //     ]
 // }
 
-config.packages.mv_main = {
+// config.packages.mv_main = {
+//     css: [
+//         // '/phone/css/bootstrap.min.css',
+//         '/phone/css/mb.css'
+//     ],
+//     js: [
+//         '/phone/js/bootstrap.min.js',
+//         '/phone/js/main.js'
+//     ]
+// }
+
+config.packages.bower = {
     css: [
-        // '/phone/css/bootstrap.min.css',
-        '/phone/css/mb.css'
+        '/lib/socicon/styles.css',
+        '/css/main.css',
+        '/css/*.css'
     ],
-    js: [
-        '/phone/js/bootstrap.min.js',
-        '/phone/js/main.js'
+    "js": [
+        '/js/admin.js',
+        '/js/jquery.*.js'
     ]
 }
 
-config.distDir = 'm/';
+config.distDir = 'web/m/';
 config.baseUrl = '/m/';
-config.rootPath = __dirname
-// config.outputFile = 'm/build.json'
+config.rootPath = './web/'
+config.outputFile = 'web/m/build.json'
 
 module.exports = config

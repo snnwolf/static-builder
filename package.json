@@ -1,11 +1,18 @@
 {
-    "name": "static-builder",
-    "version": "0.0.1",
-    "author": "Nikolay Shkrylev <snnwolf@gmail.com>",
-    "description": "For concat, minify and revision of static media files css, js",
-    "dependencies": {
-        "uglify-js": "*",
-        "uglifycss": "*",
-        "mime": "*"
-    }
+  "name": "static-builder",
+  "version": "0.1.0",
+  "author": "Nikolay Shkrylev <snnwolf@gmail.com>",
+  "description": "For concat, minify and revision of static media files css, js",
+  "dependencies": {
+    "glob": "^7.0.3",
+    "gulp-util": "^3.0.7",
+    "mime": "*",
+    "through2": "^2.0.1",
+    "uglify-js": "*",
+    "uglifycss": "*",
+    "vinyl": "^1.1.1"
+  },
+  "files": [
+    "builder.js"
+  ]
 }
