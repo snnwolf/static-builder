@@ -8,8 +8,5 @@
     "mime": "*",
     "uglify-js": "*",
     "uglifycss": "*"
-  },
-  "files": [
-    "builder.js"
-  ]
+  }
 }
