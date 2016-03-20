@@ -8,5 +8,8 @@
     "mime": "*",
     "uglify-js": "*",
     "uglifycss": "*"
-  }
+  },
+  "files": [
+    "index.js"
+  ]
 }
