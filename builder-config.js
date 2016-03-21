@@ -43,7 +43,8 @@ config.packages.bower = {
 
 config.distDir = 'web/m/';
 config.baseUrl = '/m/';
-config.rootPath = './web/'
-config.outputFile = 'web/m/build.json'
-
+config.rootPath = './web/';
+config.outputFile = 'web/m/build.json';
+config.tmp = '/tmp';
+// config.debug = true
 module.exports = config

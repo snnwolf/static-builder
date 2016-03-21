@@ -115,6 +115,9 @@ class ProjectExtension extends Twig_Extension
 - другие задачи см. в скрипте src/builder.coffee
 
 ## История
+### 0.2.0
++ кеширование собранных файлов
+
 ### 0.1.2
 + параметр debug
 

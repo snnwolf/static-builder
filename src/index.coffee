@@ -1,18 +1,73 @@
-###
-Version: 0.0.2
-###
 # TODO разобраться с @include в css
-
 'use strict'
 fs = require 'fs'
 path = require 'path'
 util = require 'util'
 mime = require 'mime'
 glob = require 'glob'
+crypto = require 'crypto'
 
-TMP_DIR = '/tmp/'
 FILE_ENCODING = 'utf-8'
 EOL = "\n"
+
+class CacheFile
+    constructor: (options)->
+        @FILE_ENCODING = 'utf-8'
+        options ?= {}
+        @tmp_dir = options.tmp_dir ? require('os').tmpDir()
+        @unique = crypto.createHash('md5').update(__dirname).digest('hex')[0...7]
+        @def_dir = "static-builder-#{@unique}"
+        @cache_dir = options.cache_dir ? path.join(@tmp_dir, @def_dir)
+        # console.log @cache_dir
+
+        try
+            fs.lstatSync @cache_dir
+        catch
+            fs.mkdirSync @cache_dir
+
+    checksum: (p) ->
+        if Array.isArray(p)
+            str = []
+            for i in p
+                str.push(fs.readFileSync(i, @FILE_ENCODING))
+            str = str.join('')
+        else
+            str = fs.readFileSync(p, @FILE_ENCODING)
+        return crypto.createHash('md5').update(str).digest('hex')
+
+    get: (key) ->
+        try
+            cache_file = path.join(@cache_dir, key)
+            return fs.readFileSync cache_file, @FILE_ENCODING
+        catch e
+            return false
+
+    set: (key, data) ->
+        filepath = path.join(@cache_dir, key)
+        fs.writeFileSync(filepath, data, @FILE_ENCODING)
+
+    audit: (exclude_cs) ->
+        files = fs.readdirSync(@cache_dir)
+        if files.length == 0
+            return
+        exclude_cs ?= []
+        now = new Date()
+        for i in files
+            if exclude_cs.indexOf(i) > -1
+                continue
+            filepath = "#{@cache_dir}/#{i}"
+            stat = fs.statSync(filepath)
+            if stat.isFile()
+                fs.unlinkSync filepath
+                # console.log filepath, 'deleted'
+
+    del: (key) ->
+        filepath = path.join(@cache_dir, key)
+        try
+            if fs.statSync(filepath).isFile()
+                fs.unlinkSync(filepath)
+        catch
+            return
 
 clearDir = (dirPath, deleteRoot = false) ->
     try
@@ -41,10 +96,10 @@ base64replace = (src, config) ->
     out = src.map (filePath) ->
         console.log "\#\# CSS::#{filePath}" if config.debug
         files = {}
+
         code = fs.readFileSync filePath, FILE_ENCODING
         cssDir = path.dirname(filePath)
-
-        code.replace rImages, (match, file) ->
+        return code.replace rImages, (match, file) ->
             # вдруг уже была замена
             if match.indexOf('data:image') > -1
                 return match
@@ -83,6 +138,7 @@ base64replace = (src, config) ->
                 files[fileName] = true
                 # console.log "#{fileName} ok"
                 return "url(\"data:"+mime.lookup(file)+";base64,#{base64}\")"
+
     return out.join(EOL)
 
 uglify = (src, type, config) ->
@@ -91,7 +147,6 @@ uglify = (src, type, config) ->
     if !config.distDir or !fs.lstatSync(config.distDir).isDirectory()
         throw new Error "#{config.distDir} is not a directory"
 
-    md5sum = require('crypto').createHash('md5')
     code = ''
 
     switch type
@@ -115,13 +170,14 @@ uglify = (src, type, config) ->
         comment += " * #{ff}\n"
     comment += " */"
 
-    distFile = md5sum.update(code).digest('hex')[0...7] + '.' + type
-    dist = path.normalize config.distDir + '/' + distFile
+    # distFile = crypto.createHash('md5').update(code).digest('hex')[0...7] + '.' + type
+    # dist = path.normalize config.distDir + '/' + distFile
     # console.log mincode.code
     # clearDir config.distDir
-    fs.writeFileSync(dist, "#{comment}\n#{code}", FILE_ENCODING);
+    return "#{comment}\n#{code}"
+    # fs.writeFileSync(dist, "#{comment}\n#{code}", FILE_ENCODING);
     # console.log src, dist
-    return path.normalize "#{config.baseUrl}/#{distFile}"
+    # return path.normalize "#{config.baseUrl}/#{distFile}"
 
 # uglify ['js/functions.js', 'js/main.js'], 'js', 'm'
 # uglify ['css/normalize.min.css', 'css/main.css'], 'css', 'm/'
@@ -141,7 +197,11 @@ plugin =
         config.maxFileSize = 4096 if !config.maxFileSize
         config.debug = false if !config.debug
 
+        cache = new CacheFile tmp_dir: config.tmp
+
         clearDir(config.distDir)
+        exclude_cs = [] # не удалять при очистке кеша
+
         for package_idx, package_content of config.packages
             res[package_idx] = []
             tags_tpl =
@@ -184,14 +244,28 @@ plugin =
                         files.push path.normalize "#{config.rootPath}/#{l}"
 
                     # console.log package_idx, files, consists_of
-                    ugilified = uglify files, _type, config
+                    src_real = src.map (p) ->
+                        return path.normalize "#{config.rootPath}/#{p}"
+
+                    cs = cache.checksum src_real
+                    exclude_cs.push cs
+                    if !(ugilified = cache.get(cs))
+                        ugilified = uglify files, _type, config
+                        cache.set cs, ugilified
+
+                    distFile = crypto.createHash('md5').update(ugilified).digest('hex')[0...7] + '.' + _type
+                    dist = path.normalize path.join(config.distDir, distFile)
+                    fs.writeFileSync(dist, ugilified, FILE_ENCODING)
+
+                    url_uglified = path.normalize "#{config.baseUrl}/#{distFile}"
+
                     part =
-                        tag: util.format tags_tpl[_type], ugilified
+                        tag: util.format tags_tpl[_type], url_uglified
                         consists_of: consists_of
                     res[package_idx].push part
 
         fs.writeFileSync config.outputFile, JSON.stringify(res, null, 4), FILE_ENCODING
-
+        cache.audit(exclude_cs)
         return
 
 if module.parent

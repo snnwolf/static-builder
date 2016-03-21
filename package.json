@@ -1,6 +1,6 @@
 {
   "name": "static-builder",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "author": "Nikolay Shkrylev <snnwolf@gmail.com>",
   "description": "For concat, minify and revision of static media files css, js",
   "dependencies": {

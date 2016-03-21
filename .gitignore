@@ -3,11 +3,4 @@
 /node_modules
 *~
 .DS_Store
-/css
-/img
-/images
-/fonts
-/m
-/phone
-/js
 /web
