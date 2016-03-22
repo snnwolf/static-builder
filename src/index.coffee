@@ -254,6 +254,7 @@ plugin =
                         cache.set cs, ugilified
 
                     distFile = crypto.createHash('md5').update(ugilified).digest('hex')[0...7] + '.' + _type
+                    distFile = "#{package_idx}-#{distFile}"
                     dist = path.normalize path.join(config.distDir, distFile)
                     fs.writeFileSync(dist, ugilified, FILE_ENCODING)
 

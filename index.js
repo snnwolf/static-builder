@@ -328,6 +328,7 @@ plugin = {
             cache.set(cs, ugilified);
           }
           distFile = crypto.createHash('md5').update(ugilified).digest('hex').slice(0, 7) + '.' + _type;
+          distFile = package_idx + "-" + distFile;
           dist = path.normalize(path.join(config.distDir, distFile));
           fs.writeFileSync(dist, ugilified, FILE_ENCODING);
           url_uglified = path.normalize(config.baseUrl + "/" + distFile);
